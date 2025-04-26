@@ -1,0 +1,107 @@
+---
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Install required packages
+  apt:
+    name:
+      - curl
+      - wget
+      - apt-transport-https
+    state: present
+
+- name: Install Docker
+  apt:
+    name: docker.io
+    state: present
+
+- name: Enable and start Docker service
+  systemd:
+    name: docker
+    enabled: true
+    state: started
+
+- name: Add current user to docker group
+  user:
+    name: "{{ lookup('env', 'USER') }}"
+    groups: docker
+    append: yes
+
+- name: Refresh group membership (newgrp docker equivalent)
+  shell: newgrp docker
+  args:
+    executable: /bin/bash
+  ignore_errors: yes
+
+- name: Download minikube binary
+  get_url:
+    url: https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+    dest: /tmp/minikube
+    mode: '0755'
+
+- name: Move minikube binary to /usr/local/bin
+  command: mv /tmp/minikube /usr/local/bin/minikube
+  args:
+    creates: /usr/local/bin/minikube
+
+- name: Download kubectl binary
+  shell: |
+    curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+  args:
+    chdir: /tmp
+    creates: /tmp/kubectl
+
+- name: Set executable permission on kubectl
+  file:
+    path: /tmp/kubectl
+    mode: '0755'
+
+- name: Move kubectl binary to /usr/local/bin
+  command: mv /tmp/kubectl /usr/local/bin/kubectl
+  args:
+    creates: /usr/local/bin/kubectl
+
+- name: Add current user to docker group
+  user:
+    name: "{{ ansible_user_id }}"
+    groups: docker
+    append: yes
+
+      #- name: Start Minikube with Docker driver using docker group
+      # shell: |
+      #  newgrp docker << EOF
+      #  minikube start --driver=docker
+      #  EOF
+      # become: false
+      #  environment:
+      #    PATH: "/usr/local/bin:{{ ansible_env.PATH }}"
+      # args:
+      # creates: /home/{{ ansible_user_id }}/.minikube
+
+      #- name: Check Minikube status
+      #command: minikube status
+      # register: minikube_status_output
+- name: Start Minikube with Docker driver
+  command: minikube start --driver=docker
+  register: minikube_start_output
+  ignore_errors: yes
+
+- name: Show Minikube start output
+  debug:
+    var: minikube_start_output
+
+- name: Check Minikube status
+  command: minikube status
+  register: minikube_status_output
+  when: minikube_start_output.rc == 0
+
+- name: Show Minikube status output
+  debug:
+    var: minikube_status_output
+
+      #- name: Show Minikube status
+      #  debug:
+      # var: minikube_status_output.stdout
+
