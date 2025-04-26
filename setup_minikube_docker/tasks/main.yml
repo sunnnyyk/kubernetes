@@ -69,16 +69,31 @@
     groups: docker
     append: yes
 
-      #- name: Start Minikube with Docker driver using docker group
-      # shell: |
-      #  newgrp docker << EOF
-      #  minikube start --driver=docker
-      #  EOF
-      # become: false
-      #  environment:
-      #    PATH: "/usr/local/bin:{{ ansible_env.PATH }}"
-      # args:
-      # creates: /home/{{ ansible_user_id }}/.minikube
+- name: Add current user to docker group
+  user:
+    name: "{{ ansible_user_id }}"
+    groups: docker
+    append: yes
+
+
+- name: Start Minikube with Docker driver using docker group
+  shell: |
+    newgrp docker << EOF
+    minikube start --driver=docker
+    EOF
+  become: false
+  environment:
+    PATH: "/usr/local/bin:{{ ansible_env.PATH }}"
+  args:
+    creates: "/home/{{ ansible_user_id }}/.minikube"
+
+
+- name: Check Minikube status
+  command: minikube status
+  register: minikube_status_output
+  when: minikube_start_output is defined
+  ignore_errors: true
+
 
       #- name: Check Minikube status
       #command: minikube status
@@ -104,4 +119,3 @@
       #- name: Show Minikube status
       #  debug:
       # var: minikube_status_output.stdout
-
