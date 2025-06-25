@@ -1,4 +1,5 @@
-- hosts: localhost
+- hosts: webservers
+  
   become: yes
   roles:
     - setup_minikube_docker
